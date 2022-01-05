@@ -24,8 +24,11 @@ schema = {
                     'required': True
                 },
                 'match': {
-                    'type': 'string',
-                    'required': True
+                    'type': 'list',
+                    'required': True,
+                    'schema': {
+                        'type': 'string'
+                    }
                 },
                 'settings': {
                     'type': 'dict',
@@ -50,11 +53,14 @@ class DevDeckSettings:
         settings_for_deck = None
         for index, deck_setting in enumerate(deck_settings):
             if deck_setting.serial_number() == serial_number[0:12]:
-                regex = re.compile(deck_setting.match(), re.IGNORECASE)
-                if deck_setting.match() in window_title.lower() is not None:
-                    deck_setting.set_identifier(index)
-                    settings_for_deck = deck_setting
-                    break
+                #regex = re.compile(deck_setting.match(), re.IGNORECASE)
+                for match in deck_setting.match():
+                    if match in window_title.lower():
+                        deck_setting.set_identifier(index)
+                        settings_for_deck = deck_setting
+                        break
+            if settings_for_deck is not None:
+                break
 
         if settings_for_deck is not None:
             return settings_for_deck
@@ -82,7 +88,9 @@ class DevDeckSettings:
             deck_config = {
                 'serial_number': serial_number,
                 'name': 'devdeck.decks.single_page_deck_controller.SinglePageDeckController',
-                'match': '*',
+                'match': [
+                    ''
+                ],
                 'prority': 0,
                 'settings': {
                     'controls': [
