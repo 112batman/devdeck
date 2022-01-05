@@ -48,6 +48,9 @@ class DevDeckSettings:
         self.settings = settings
 
     def deck(self, serial_number, window_title):
+        if window_title is None:
+            window_title = ''
+
         deck_settings = self.decks()
 
         settings_for_deck = None
