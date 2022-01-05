@@ -4,14 +4,15 @@ import sys
 import threading
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from time import sleep
 
 from StreamDeck.DeviceManager import DeviceManager
 
 from devdeck.deck_manager import DeckManager
+from devdeck.window_focus_listener_thread import window_focus_listener_thread
 from devdeck.filters import InfoFilter
 from devdeck.settings.devdeck_settings import DevDeckSettings
 from devdeck.settings.validation_error import ValidationError
-
 
 def main():
     os.makedirs(os.path.join(str(Path.home()), '.devdeck'), exist_ok=True)
@@ -62,35 +63,46 @@ def main():
     except ValidationError as validation_error:
         print(validation_error)
 
+    focused_window = window_focus_listener_thread()
+    focused_window.start()
+    print(focused_window.focused_window)
+
+    if len(streamdecks) == 0:
+        root.info("No streamdecks detected, exiting.")
+        return
+
     for index, deck in enumerate(streamdecks):
         deck.open()
         root.info('Connecting to deck: %s (S/N: %s)', deck.id(), deck.get_serial_number())
 
-        deck_settings = settings.deck(deck.get_serial_number())
-        if deck_settings is None:
-            root.info("Skipping deck %s (S/N: %s) - no settings present", deck.id(), deck.get_serial_number())
-            deck.close()
-            continue
+        deck_manager = None
 
-        deck_manager = DeckManager(deck)
+        old_identifier = None
 
-        # Instantiate deck
-        main_deck = deck_settings.deck_class()(None, **deck_settings.settings())
-        deck_manager.set_active_deck(main_deck)
-
-        for t in threading.enumerate():
-            if t is threading.currentThread():
+        while True:
+            deck_settings = settings.deck(deck.get_serial_number(), focused_window.focused_window)
+            if deck_settings is None:
+                root.info("Skipping deck %s (S/N: %s) - no settings present", deck.id(), deck.get_serial_number())
+                deck.close()
                 continue
 
-            if t.is_alive():
-                try:
-                    t.join()
-                except KeyboardInterrupt as ex:
-                    deck_manager.close()
-                    deck.close()
+            if old_identifier is not None:
+                if old_identifier == deck_settings.identifier():
+                    continue
+            
+            old_identifier = deck_settings.identifier()
 
-    if len(streamdecks) == 0:
-        root.info("No streamdecks detected, exiting.")
+            if deck_manager is not None:
+                deck_manager.close()
+            
+            deck_manager = DeckManager(deck)
+
+            # Instantiate deck
+            main_deck = deck_settings.deck_class()(None, **deck_settings.settings())
+
+            deck_manager.set_active_deck(main_deck)
+
+            sleep(.5)
 
 
 if __name__ == '__main__':

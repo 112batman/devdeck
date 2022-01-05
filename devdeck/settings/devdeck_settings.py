@@ -1,5 +1,6 @@
 import yaml
 from cerberus import Validator
+import re
 
 from devdeck.settings.deck_settings import DeckSettings
 from devdeck.settings.validation_error import ValidationError
@@ -18,6 +19,14 @@ schema = {
                     'type': 'string',
                     'required': True
                 },
+                'priority': {
+                    'type': 'number',
+                    'required': True
+                },
+                'match': {
+                    'type': 'string',
+                    'required': True
+                },
                 'settings': {
                     'type': 'dict',
                     'required': True
@@ -27,20 +36,34 @@ schema = {
     }
 }
 
+def priorityKey(val):
+    return val.priority()
+
 
 class DevDeckSettings:
     def __init__(self, settings):
         self.settings = settings
 
-    def deck(self, serial_number):
-        settings_for_deck = [deck_setting for deck_setting in self.decks() if
-                             deck_setting.serial_number() == serial_number[0:12]]
-        if settings_for_deck:
-            return settings_for_deck[0]
+    def deck(self, serial_number, window_title):
+        deck_settings = self.decks()
+
+        settings_for_deck = None
+        for index, deck_setting in enumerate(deck_settings):
+            if deck_setting.serial_number() == serial_number[0:12]:
+                regex = re.compile(deck_setting.match(), re.IGNORECASE)
+                if deck_setting.match() in window_title.lower() is not None:
+                    deck_setting.set_identifier(index)
+                    settings_for_deck = deck_setting
+                    break
+
+        if settings_for_deck is not None:
+            return settings_for_deck
         return None
 
     def decks(self):
-        return [DeckSettings(deck_setting) for deck_setting in self.settings['decks']]
+        deck_settings = [DeckSettings(deck_setting) for deck_setting in self.settings['decks']]
+        deck_settings.sort(key=priorityKey)
+        return deck_settings
 
     @staticmethod
     def load(filename):
@@ -59,6 +82,8 @@ class DevDeckSettings:
             deck_config = {
                 'serial_number': serial_number,
                 'name': 'devdeck.decks.single_page_deck_controller.SinglePageDeckController',
+                'match': '*',
+                'prority': 0,
                 'settings': {
                     'controls': [
                         {

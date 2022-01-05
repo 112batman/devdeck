@@ -12,6 +12,9 @@ class TimerControl(DeckControl):
         self.start_time = None
         self.end_time = None
         self.thread = None
+
+        self.disposed = False
+
         super().__init__(key_no, **kwargs)
 
     def initialize(self):
@@ -43,6 +46,9 @@ class TimerControl(DeckControl):
 
     def _update_display(self):
         while self.end_time is None:
+            if self.disposed:
+                break
+
             if self.start_time is None:
                 sleep(1)
                 continue
@@ -60,3 +66,6 @@ class TimerControl(DeckControl):
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
         return f'{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}'
+
+    def dispose(self):
+        self.disposed = True

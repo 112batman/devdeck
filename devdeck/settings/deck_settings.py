@@ -16,3 +16,15 @@ class DeckSettings:
     def deck_class(self):
         module_name, class_name = self.config['name'].rsplit(".", 1)
         return getattr(importlib.import_module(module_name), class_name)
+
+    def match(self):
+        return self.config['match']
+
+    def priority(self):
+        return self.config['priority']
+
+    def set_identifier(self, index):
+        self.config['identifier'] = self.serial_number() + '$' + str(index)
+
+    def identifier(self):
+        return self.config['identifier']
